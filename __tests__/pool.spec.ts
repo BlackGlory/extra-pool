@@ -1,7 +1,7 @@
 import { pass } from '@blackglory/prelude'
 import { Pool } from '@src/pool'
 import { getErrorAsync } from 'return-style'
-import { Deferred, toExtraPromise, ExtraPromiseState, delay } from 'extra-promise'
+import { Deferred, StatefulPromise, StatefulPromiseState, delay } from 'extra-promise'
 
 describe('Pool', () => {
   describe('create', () => {
@@ -46,15 +46,15 @@ describe('Pool', () => {
         // 确保是先调用了use, 然后才执行的destroy
         await delay(100)
 
-        const promise = toExtraPromise(pool.destroy())
+        const promise = StatefulPromise.from(pool.destroy())
         await Promise.resolve()
         const state1 = promise.state
         deferred.resolve()
         await promise
         const state2 = promise.state
 
-        expect(state1).toBe(ExtraPromiseState.Pending)
-        expect(state2).toBe(ExtraPromiseState.Fulfilled)
+        expect(state1).toBe(StatefulPromiseState.Pending)
+        expect(state2).toBe(StatefulPromiseState.Fulfilled)
       })
     })
 
@@ -188,7 +188,7 @@ describe('Pool', () => {
           const deferred = new Deferred<void>()
           pool.use(() => deferred)
 
-          const result = toExtraPromise(pool.use(value => value))
+          const result = StatefulPromise.from(pool.use(value => value))
           await Promise.resolve()
           const state1 = result.state
           deferred.resolve()
@@ -196,8 +196,8 @@ describe('Pool', () => {
           const state2 = result.state
 
           expect(create).toBeCalledTimes(1)
-          expect(state1).toBe(ExtraPromiseState.Pending)
-          expect(state2).toBe(ExtraPromiseState.Fulfilled)
+          expect(state1).toBe(StatefulPromiseState.Pending)
+          expect(state2).toBe(StatefulPromiseState.Fulfilled)
           expect(proResult).toBe(value)
         })
       })

@@ -1,6 +1,7 @@
 import { CustomError } from '@blackglory/errors'
 import { Awaitable } from '@blackglory/prelude'
-import { FiniteStateMachine, Queue } from '@blackglory/structures'
+import { Queue } from '@blackglory/structures'
+import { FiniteStateMachine } from 'extra-fsm'
 import { Deferred } from 'extra-promise'
 import { find } from 'iterable-operator'
 import { Instance } from './instance'

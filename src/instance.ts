@@ -1,6 +1,6 @@
 import { go, Awaitable } from '@blackglory/prelude'
 import { Deferred } from 'extra-promise'
-import { ObservableFiniteStateMachine } from '@blackglory/structures'
+import { ObservableFiniteStateMachine } from 'extra-fsm'
 import { firstValueFrom } from 'rxjs'
 import { filter } from 'rxjs/operators'
 

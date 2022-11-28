@@ -160,6 +160,42 @@ describe('Pool', () => {
       expect(result).toBe(value)
     })
 
+    describe('concurrencyPerInstance', () => {
+      test('users < concurrency', async () => {
+        const create = jest.fn()
+        const pool = new Pool({
+          create
+        , concurrencyPerInstance: 2
+        })
+
+        const promise1 = pool.use(() => delay(100))
+        const promise2 = pool.use(() => delay(100))
+        const size = pool.size
+        await promise1
+        await promise2
+
+        expect(size).toBe(1)
+      })
+
+      test('users = concurrency', async () => {
+        const create = jest.fn()
+        const pool = new Pool({
+          create
+        , concurrencyPerInstance: 2
+        })
+
+        const promise1 = pool.use(() => delay(100))
+        const promise2 = pool.use(() => delay(100))
+        const promise3 = pool.use(() => delay(100))
+        const size = pool.size
+        await promise1
+        await promise2
+        await promise3
+
+        expect(size).toBe(2)
+      })
+    })
+
     describe('use when pool does not have idle instances', () => {
       describe('number of instances < maxInstances', () => {
         it('construct a new instance', async () => {
@@ -238,8 +274,8 @@ describe('Pool', () => {
     })
   })
 
-  describe('defer instance destruction', () => {
-    test('destruction', async () => {
+  describe('delete instance', () => {
+    test('deleted', async () => {
       const create = jest.fn()
       const destroy = jest.fn()
       const pool = new Pool({
@@ -259,7 +295,7 @@ describe('Pool', () => {
       expect(destroy).toBeCalledTimes(1)
     })
 
-    test('cancel destruction', async () => {
+    test('cancel scheduled deletion', async () => {
       const create = jest.fn()
       const destroy = jest.fn()
       const pool = new Pool({

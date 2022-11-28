@@ -1,4 +1,4 @@
-import { go, Awaitable } from '@blackglory/prelude'
+import { go, assert, Awaitable } from '@blackglory/prelude'
 import { Deferred } from 'extra-promise'
 import { ObservableFiniteStateMachine } from 'extra-fsm'
 import { firstValueFrom } from 'rxjs'
@@ -15,7 +15,7 @@ export enum InstanceState {
 type InstanceEvent =
 | 'created'
 | 'use'
-| 'used'
+| 'idle'
 | 'destroy'
 | 'destroyed'
 
@@ -28,7 +28,7 @@ const instanceSchema = {
   , destroy: InstanceState.Destroying
   }
 , [InstanceState.Using]: {
-    used: InstanceState.Idle
+    idle: InstanceState.Idle
   }
 , [InstanceState.Destroying]: {
     destroyed: InstanceState.Destroyed
@@ -38,13 +38,18 @@ const instanceSchema = {
 
 export class Instance<T> {
   private fsm: ObservableFiniteStateMachine<InstanceState, InstanceEvent>
-  readonly _value: Deferred<T>
+  private _users = 0
+  readonly _instance: Deferred<T>
+
+  get users(): number {
+    return this._users
+  }
 
   constructor(
-    createValue: () => Awaitable<T>
-  , private destroyValue?: (value: T) => Awaitable<void>
+    createInstance: () => Awaitable<T>
+  , private destroyInstance?: (value: T) => Awaitable<void>
   ) {
-    this._value = new Deferred<T>()
+    this._instance = new Deferred<T>()
     this.fsm = new ObservableFiniteStateMachine<InstanceState, InstanceEvent>(
       instanceSchema
     , InstanceState.Creating
@@ -52,17 +57,17 @@ export class Instance<T> {
 
     go(async () => {
       try {
-        const val = await createValue()
-        this._value.resolve(val)
+        const instance = await createInstance()
         this.fsm.send('created')
+        this._instance.resolve(instance)
       } catch (e) {
-        this._value.reject(e)
+        this._instance.reject(e)
       }
     })
   }
 
   async waitForCreated(): Promise<void> {
-    await this._value
+    await this._instance
   }
 
   getState(): InstanceState {
@@ -70,19 +75,40 @@ export class Instance<T> {
   }
 
   async use<U>(fn: (instance: T) => Awaitable<U>): Promise<U> {
-    this.fsm.send('use')
-    const value = await this._value
+    // 不要尝试将此处的代码改编成switch管道, 很难正确编写.
+
+    assert(
+      this.fsm.state !== InstanceState.Destroying &&
+      this.fsm.state !== InstanceState.Destroyed
+    , 'The instance is not available'
+    )
+
+    this._users++
+
+    if (this.fsm.state === InstanceState.Creating) {
+      await this._instance
+    }
+
+    if (this.fsm.state === InstanceState.Idle) {
+      this.fsm.send('use')
+    }
+
+    assert(this.fsm.state === InstanceState.Using, 'The instance state should be using')
+    const instance = await this._instance
     try {
-      return await fn(value)
+      const result = await fn(instance)
+      return result
     } finally {
-      this.fsm.send('used')
+      if ((--this._users) === 0) {
+        this.fsm.send('idle')
+      }
     }
   }
 
   async destroy(): Promise<void> {
     if (
-      this.fsm.matches(InstanceState.Creating) ||
-      this.fsm.matches(InstanceState.Using)
+      this.fsm.state === InstanceState.Creating ||
+      this.fsm.state === InstanceState.Using
     ) {
       await firstValueFrom(
         this.fsm.observeStateChanges().pipe(
@@ -91,12 +117,12 @@ export class Instance<T> {
       )
     }
 
-    if (this.fsm.matches(InstanceState.Idle)) {
+    if (this.fsm.state === InstanceState.Idle) {
       this.fsm.send('destroy')
       // 如果destroyed过程报错, 则程序崩溃, 这是预期行为.
-      await this.destroyValue?.(await this._value)
+      await this.destroyInstance?.(await this._instance)
       this.fsm.send('destroyed')
-    } else if (this.fsm.matches(InstanceState.Destroying)) {
+    } else if (this.fsm.state === InstanceState.Destroying) {
       await firstValueFrom(
         this.fsm.observeStateChanges().pipe(
           filter(state => state.newState === InstanceState.Destroyed)

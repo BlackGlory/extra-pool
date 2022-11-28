@@ -1,11 +1,11 @@
 import { CustomError } from '@blackglory/errors'
-import { Awaitable } from '@blackglory/prelude'
+import { go, Awaitable } from '@blackglory/prelude'
 import { Queue } from '@blackglory/structures'
 import { FiniteStateMachine } from 'extra-fsm'
 import { Deferred } from 'extra-promise'
-import { find } from 'iterable-operator'
-import { Instance } from './instance'
+import { toArray, filter } from 'iterable-operator'
 import { setTimeout } from 'extra-timers'
+import { Instance, InstanceState } from './instance'
 
 interface IPoolOptions<T> {
   create: () => Awaitable<T>
@@ -33,12 +33,21 @@ interface IPoolOptions<T> {
    * 默认为0, 空闲实例会被立即销毁.
    */
   idleTimeout?: number
+
+  /**
+   * 每个实例的并发数.
+   * 默认为1, 每个实例只能同时有一个用户.
+   */
+  concurrencyPerInstance?: number
 }
 
-interface IItem<T> {
+interface IPoolItem<T> {
   instance: Instance<T>
-  using: boolean
-  cancelDeletion?: () => void
+
+  /**
+   * 空闲实例会在idleTimeout之后被删除, 该函数用于取消预定的删除操作.
+   */
+  cancelScheduledDeletion?: () => void
 }
 
 enum PoolState {
@@ -62,28 +71,30 @@ const poolSchema = {
 }
 
 export class Pool<T> {
-  private createValue: () => Awaitable<T>
-  private destroyValue?: (value: T) => Awaitable<void>
+  private createInstance: () => Awaitable<T>
+  private destroyInstance?: (value: T) => Awaitable<void>
   private fsm = new FiniteStateMachine<PoolState, PoolEvent>(
     poolSchema
   , PoolState.Running
   )
-  private items: Set<IItem<T>> = new Set()
-  private userDeferredQueue: Queue<Deferred<IItem<T>>> = new Queue()
+  private waitingUsers: Queue<Deferred<IPoolItem<T>>> = new Queue()
+  private items: Set<IPoolItem<T>> = new Set()
   private maxInstances: number
   private minInstances: number
   private idleTimeout: number
+  private concurrencyPerInstance: number
 
   get size(): number {
     return this.items.size
   }
 
   constructor(options: IPoolOptions<T>) {
-    this.createValue = options.create
-    this.destroyValue = options.destroy
+    this.createInstance = options.create
+    this.destroyInstance = options.destroy
     this.maxInstances = options.maxInstances ?? Infinity
     this.minInstances = options.minInstances ?? 0
     this.idleTimeout = options.idleTimeout ?? 0
+    this.concurrencyPerInstance = options.concurrencyPerInstance ?? 1
   }
 
   /**
@@ -93,53 +104,70 @@ export class Pool<T> {
   async use<U>(fn: (instance: T) => Awaitable<U>): Promise<U> {
     const self = this
 
-    const item = find(this.items, instance => !instance.using)
+    const item = go(() => {
+      const candidateItems = toArray(filter(
+        this.items
+      , item => item.instance.users < this.concurrencyPerInstance
+      ))
+
+      if (candidateItems.length) {
+        return candidateItems.reduce((previous, current) => {
+          if (current.instance.users < previous.instance.users) {
+            return current
+          } else {
+            return previous
+          }
+        })
+      }
+    })
+
     if (item) {
-      return await use(item)
+      return await useItem(item)
     } else {
       if (this.items.size < this.maxInstances) {
-        const instance = new Instance(this.createValue, this.destroyValue)
-        const item: IItem<T> = {
-          instance
-        , using: true
-        }
+        const instance = new Instance(this.createInstance, this.destroyInstance)
+        const item: IPoolItem<T> = { instance }
         this.items.add(item)
-        return await use(item)
+        return await useItem(item)
       } else {
-        const deferred = new Deferred<IItem<T>>()
-        this.userDeferredQueue.enqueue(deferred)
-        const item = await deferred
-        return await use(item)
+        const waitingUser = new Deferred<IPoolItem<T>>()
+        this.waitingUsers.enqueue(waitingUser)
+        const item = await waitingUser
+        return await useItem(item)
       }
     }
 
-    async function use(item: IItem<T>): Promise<U> {
-      item.using = true
-
-      if (item.cancelDeletion) {
-        item.cancelDeletion()
-        delete item.cancelDeletion
+    async function useItem(item: IPoolItem<T>): Promise<U> {
+      // 由于使用该实例, 取消其预定的删除动作.
+      if (item.cancelScheduledDeletion) {
+        item.cancelScheduledDeletion()
+        delete item.cancelScheduledDeletion
       }
 
-      await item.instance.waitForCreated()
       try {
         return await item.instance.use(fn)
       } finally {
-        if (self.userDeferredQueue.size > 0) {
-          self.userDeferredQueue.dequeue()!.resolve(item)
+        const waitingUser = self.waitingUsers.dequeue()
+        if (waitingUser) {
+          waitingUser.resolve(item)
         } else {
-          item.using = false
-          if (self.items.size > self.minInstances) {
+          if (
+            item.instance.users === 0 &&
+            self.items.size > self.minInstances
+          ) {
             if (self.idleTimeout > 0) {
-              item.cancelDeletion = setTimeout(self.idleTimeout, removeItem)
+              item.cancelScheduledDeletion = setTimeout(
+                self.idleTimeout
+              , deleteInstance
+              )
             } else {
-              await removeItem()
+              await deleteInstance()
             }
           }
         }
       }
 
-      async function removeItem(): Promise<void> {
+      async function deleteInstance(): Promise<void> {
         self.items.delete(item)
         await item.instance.destroy()
       }
@@ -154,11 +182,10 @@ export class Pool<T> {
     }
     this.items.clear()
 
-    let deferred: Deferred<IItem<T>> | undefined
-    while (deferred = this.userDeferredQueue.dequeue()) {
+    let deferred: Deferred<IPoolItem<T>> | undefined
+    while (deferred = this.waitingUsers.dequeue()) {
       deferred.reject(new UnavailablePool())
     }
-
 
     this.fsm.send('destroyed')
   }

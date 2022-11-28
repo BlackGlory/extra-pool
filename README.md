@@ -31,9 +31,10 @@ await dbConnectionPool.destroy()
 interface IPoolOptions<T> {
   create: () => Awaitable<T>
   destroy?: (instance: T) => Awaitable<void>
-  maxInstances: number
+  maxInstances?: number
   minInstances?: number = 0
   idleTimeout?: number = 0
+  concurrencyPerInstance? = 1
 }
 
 class Pool<T> {

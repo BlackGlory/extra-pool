@@ -141,7 +141,7 @@ export class Pool<T> {
       // 由于使用该实例, 取消其预定的删除动作.
       if (item.cancelScheduledDeletion) {
         item.cancelScheduledDeletion()
-        delete item.cancelScheduledDeletion
+        item.cancelScheduledDeletion = undefined
       }
 
       try {

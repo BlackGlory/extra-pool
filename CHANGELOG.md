@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.1.4](https://github.com/BlackGlory/extra-pool/compare/v0.1.3...v0.1.4) (2026-01-23)
+
+
+### Features
+
+* add `Pool#capacity` ([af8cbb8](https://github.com/BlackGlory/extra-pool/commit/af8cbb899c312febd536055afc08f6278f68ea29))
+
 ### [0.1.3](https://github.com/BlackGlory/extra-pool/compare/v0.1.2...v0.1.3) (2025-11-03)
 
 ### [0.1.2](https://github.com/BlackGlory/extra-pool/compare/v0.1.1...v0.1.2) (2023-06-10)

@@ -5,7 +5,7 @@ import { FiniteStateMachine } from 'extra-fsm'
 import { Deferred } from 'extra-promise'
 import { toArray, filter } from 'iterable-operator'
 import { setTimeout } from 'extra-timers'
-import { Instance, InstanceState } from './instance'
+import { Instance } from './instance'
 
 interface IPoolOptions<T> {
   create: () => Awaitable<T>
@@ -83,6 +83,10 @@ export class Pool<T> {
   private minInstances: number
   private idleTimeout: number
   private concurrencyPerInstance: number
+
+  get capacity(): number {
+    return this.maxInstances
+  }
 
   get size(): number {
     return this.items.size

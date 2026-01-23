@@ -38,7 +38,8 @@ interface IPoolOptions<T> {
 }
 
 class Pool<T> {
-  get size(): number
+  readonly capacity: number
+  readonly size: number
 
   constructor(options: IPoolOptions<T>)
 

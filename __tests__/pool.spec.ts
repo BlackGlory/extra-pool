@@ -240,6 +240,20 @@ describe('Pool', () => {
     })
   })
 
+  test('capacity', () => {
+    const create = jest.fn()
+    const destroy = jest.fn()
+    const pool = new Pool({
+      create
+    , destroy
+    , maxInstances: 1
+    })
+
+    const result = pool.capacity
+
+    expect(result).toBe(1)
+  })
+
   describe('size', () => {
     test('minInstances === 0', async () => {
       const create = jest.fn()

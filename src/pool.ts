@@ -71,18 +71,18 @@ const poolSchema = {
 }
 
 export class Pool<T> {
-  private createInstance: () => Awaitable<T>
-  private destroyInstance?: (value: T) => Awaitable<void>
-  private fsm = new FiniteStateMachine<PoolState, PoolEvent>(
+  private readonly createInstance: () => Awaitable<T>
+  private readonly destroyInstance?: (value: T) => Awaitable<void>
+  private readonly fsm = new FiniteStateMachine<PoolState, PoolEvent>(
     poolSchema
   , PoolState.Running
   )
-  private waitingUsers: Queue<Deferred<IPoolItem<T>>> = new Queue()
-  private items: Set<IPoolItem<T>> = new Set()
-  private maxInstances: number
-  private minInstances: number
-  private idleTimeout: number
-  private concurrencyPerInstance: number
+  private readonly waitingUsers: Queue<Deferred<IPoolItem<T>>> = new Queue()
+  private readonly items: Set<IPoolItem<T>> = new Set()
+  private readonly maxInstances: number
+  private readonly minInstances: number
+  private readonly idleTimeout: number
+  private readonly concurrencyPerInstance: number
 
   get capacity(): number {
     return this.maxInstances

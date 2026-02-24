@@ -1,11 +1,10 @@
-import { CustomError } from '@blackglory/errors'
-import { go, Awaitable } from '@blackglory/prelude'
+import { go, Awaitable, CustomError, isntEmptyArray, assert } from '@blackglory/prelude'
 import { Queue } from '@blackglory/structures'
-import { FiniteStateMachine } from 'extra-fsm'
-import { Deferred } from 'extra-promise'
+import { FiniteStateMachine, IFiniteStateMachineSchema } from 'extra-fsm'
+import { Deferred, each } from 'extra-promise'
 import { toArray, filter } from 'iterable-operator'
 import { setTimeout } from 'extra-timers'
-import { Instance } from './instance'
+import { Instance } from './instance.js'
 
 interface IPoolOptions<T> {
   create: () => Awaitable<T>
@@ -51,16 +50,16 @@ interface IPoolItem<T> {
 }
 
 enum PoolState {
-  Running = 'running'
-, Destroying = 'destroying'
-, Destroyed = 'destroyed'
+  Running
+, Destroying
+, Destroyed
 }
 
 type PoolEvent =
 | 'destroy'
 | 'destroyed'
 
-const poolSchema = {
+const poolSchema: IFiniteStateMachineSchema<PoolState, PoolEvent> = {
   [PoolState.Running]: {
     destroy: PoolState.Destroying
   }
@@ -73,7 +72,10 @@ const poolSchema = {
 export class Pool<T> {
   private readonly createInstance: () => Awaitable<T>
   private readonly destroyInstance?: (value: T) => Awaitable<void>
-  private readonly fsm = new FiniteStateMachine<PoolState, PoolEvent>(
+  private readonly fsm: FiniteStateMachine<
+    PoolState
+  , PoolEvent
+  > = new FiniteStateMachine(
     poolSchema
   , PoolState.Running
   )
@@ -106,6 +108,8 @@ export class Pool<T> {
    * 函数的使用者应该尊重阻塞, 否则会意外制造大量非必要的Promise.
    */
   async use<U>(fn: (instance: T) => Awaitable<U>): Promise<U> {
+    assert(this.fsm.matches(PoolState.Running), 'The pool is not available')
+
     const self = this
 
     const item = go(() => {
@@ -114,13 +118,12 @@ export class Pool<T> {
       , item => item.instance.users < this.concurrencyPerInstance
       ))
 
-      if (candidateItems.length) {
+      if (isntEmptyArray(candidateItems)) {
+        // 找到负载最低(用户量最少)的项目.
         return candidateItems.reduce((previous, current) => {
-          if (current.instance.users < previous.instance.users) {
-            return current
-          } else {
-            return previous
-          }
+          return current.instance.users < previous.instance.users
+               ? current
+               : previous
         })
       }
     })
@@ -181,14 +184,12 @@ export class Pool<T> {
   async destroy(): Promise<void> {
     this.fsm.send('destroy')
 
-    for (const item of this.items) {
-      await item.instance.destroy()
-    }
+    await each(this.items, item => item.instance.destroy())
     this.items.clear()
 
-    let deferred: Deferred<IPoolItem<T>> | undefined
-    while (deferred = this.waitingUsers.dequeue()) {
-      deferred.reject(new UnavailablePool())
+    let waitingUser: Deferred<IPoolItem<T>> | undefined
+    while (waitingUser = this.waitingUsers.dequeue()) {
+      waitingUser.reject(new UnavailablePool())
     }
 
     this.fsm.send('destroyed')

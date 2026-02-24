@@ -1,4 +1,4 @@
-import { go, Awaitable, CustomError, isntEmptyArray, assert, isPositiveInfinity } from '@blackglory/prelude'
+import { go, Awaitable, CustomError, isntEmptyArray, assert } from '@blackglory/prelude'
 import { Queue } from '@blackglory/structures'
 import { FiniteStateMachine, IFiniteStateMachineSchema } from 'extra-fsm'
 import { Deferred, each } from 'extra-promise'
@@ -81,8 +81,8 @@ export class Pool<T> {
   )
   private readonly waitingUsers: Queue<Deferred<IPoolItem<T>>> = new Queue()
   private readonly items: Set<IPoolItem<T>> = new Set()
-  private readonly minInstances: number
   private readonly maxInstances: number
+  private readonly minInstances: number
   private readonly idleTimeout: number
   private readonly concurrencyPerInstance: number
 
@@ -97,39 +97,10 @@ export class Pool<T> {
   constructor(options: IPoolOptions<T>) {
     this.createInstance = options.create
     this.destroyInstance = options.destroy
-
-    this.minInstances = options.minInstances ?? 0
-    assert(
-      Number.isInteger(this.minInstances) &&
-      Number.isFinite(this.minInstances) &&
-      this.minInstances >= 0
-    , 'The minInstances must be a non-negative finite integer'
-    )
-
     this.maxInstances = options.maxInstances ?? Infinity
-    assert(
-      (
-        Number.isInteger(this.maxInstances) ||
-        isPositiveInfinity(this.maxInstances)
-      ) &&
-      this.maxInstances >= this.minInstances
-    , 'The maxInstances must be either an integer greater than or equal to minInstances, or Infinity'
-    )
-
+    this.minInstances = options.minInstances ?? 0
     this.idleTimeout = options.idleTimeout ?? 0
-    assert(
-      Number.isInteger(this.idleTimeout) &&
-      Number.isFinite(this.idleTimeout) &&
-      this.idleTimeout >= 0
-    , 'The idleTimeout must be a non-negative finite integer'
-    )
-
     this.concurrencyPerInstance = options.concurrencyPerInstance ?? 1
-    assert(
-      Number.isInteger(this.concurrencyPerInstance) &&
-      this.concurrencyPerInstance >= 1
-    , 'The concurrencyPerInstance must an integer greater than or equal to 1'
-    )
   }
 
   /**

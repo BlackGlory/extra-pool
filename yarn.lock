@@ -58,6 +58,14 @@
     extra-utils "^5.20.0"
     justypes "^4.4.1"
 
+"@blackglory/observe@^0.3.0":
+  version "0.3.2"
+  resolved "https://registry.yarnpkg.com/@blackglory/observe/-/observe-0.3.2.tgz#fc015e5cb8878af428f74547a4202c045d230e08"
+  integrity sha512-sl5rjwIwX139E2PRrfZDTIYOho3FO4Lq5G17CgsXDF07GBikRoLuQPZsezj0MhJjukgyutZe19HTMkrtCDlpxQ==
+  dependencies:
+    iterable-operator "^6.0.0"
+    rxjs "^7.8.2"
+
 "@blackglory/pass@^1.1.0", "@blackglory/pass@^1.1.1":
   version "1.1.1"
   resolved "https://registry.yarnpkg.com/@blackglory/pass/-/pass-1.1.1.tgz#91e1cf9988cb14e58c7252a20b6b410fd3b6b9bc"
@@ -128,6 +136,18 @@
     extra-utils "^5.6.0"
     iterable-operator "^5.0.0"
     justypes "^4.2.1"
+
+"@blackglory/wait-for@^0.8.5":
+  version "0.8.5"
+  resolved "https://registry.yarnpkg.com/@blackglory/wait-for/-/wait-for-0.8.5.tgz#5885de2cd7d76c0585073f3d52b9b7d915e82e7a"
+  integrity sha512-hzorkX696mwNDtNzWkIK56fX9qWQdPOQm5RaK0DH3ejPdtWrvhADXFGxdq2WAacBkE1ebw9fJIvo0Fq4eQX/Ng==
+  dependencies:
+    "@blackglory/observe" "^0.3.0"
+    "@blackglory/structures" "^0.14.11"
+    extra-promise "^7.0.1"
+    extra-timers "^0.3.0"
+    iterable-operator "^5.1.0"
+    rxjs "^7.8.2"
 
 "@commitlint/cli@^20.4.2":
   version "20.4.2"

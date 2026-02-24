@@ -2,7 +2,10 @@ import { describe, test, it, expect, vi } from 'vitest'
 import { pass } from '@blackglory/prelude'
 import { Pool } from '@src/pool.js'
 import { getErrorAsync } from 'return-style'
-import { Deferred, StatefulPromise, StatefulPromiseState, delay } from 'extra-promise'
+import { Deferred, StatefulPromise, StatefulPromiseState } from 'extra-promise'
+import { waitForAllMacrotasksProcessed, waitForTimeout } from '@blackglory/wait-for'
+
+const TIME_ERROR = 1
 
 describe('Pool', () => {
   describe('create', () => {
@@ -44,8 +47,8 @@ describe('Pool', () => {
         })
         const deferred = new Deferred<void>()
         pool.use(() => deferred)
-        // 确保是先调用了use, 然后才执行的destroy
-        await delay(100)
+        // 确保是先调用了use, 然后才执行的destroy.
+        await waitForAllMacrotasksProcessed()
 
         const promise = StatefulPromise.from(pool.destroy())
         await Promise.resolve()
@@ -156,13 +159,13 @@ describe('Pool', () => {
 
   describe('use', () => {
     test('user returns a value', async () => {
-      const value = {}
+      const internalInstance = {}
       const create = vi.fn()
       const pool = new Pool({ create })
 
-      const result = await pool.use(() => value)
+      const result = await pool.use(() => internalInstance)
 
-      expect(result).toBe(value)
+      expect(result).toBe(internalInstance)
     })
 
     test('user throws an error', async () => {
@@ -178,19 +181,19 @@ describe('Pool', () => {
     })
 
     test('reuse', async () => {
-      const value = {}
-      const create = vi.fn(() => value)
+      const internalInstance = {}
+      const create = vi.fn(() => internalInstance)
       const pool = new Pool({
         create
       , maxInstances: 1
       , minInstances: 1
       })
-      await pool.use(() => value)
+      await pool.use(() => internalInstance)
 
-      const result = await pool.use(value => value)
+      const result = await pool.use(internalInstance => internalInstance)
 
       expect(create).toBeCalledTimes(1)
-      expect(result).toBe(value)
+      expect(result).toBe(internalInstance)
     })
 
     describe('concurrencyPerInstance', () => {
@@ -201,11 +204,12 @@ describe('Pool', () => {
         , concurrencyPerInstance: 2
         })
 
-        const promise1 = pool.use(() => delay(100))
-        const promise2 = pool.use(() => delay(100))
+        const deferred = new Deferred<void>()
+        const promise1 = pool.use(() => deferred)
+        const promise2 = pool.use(() => deferred)
         const size = pool.size
-        await promise1
-        await promise2
+        deferred.resolve()
+        await Promise.all([promise1, promise2])
 
         expect(size).toBe(1)
       })
@@ -217,13 +221,13 @@ describe('Pool', () => {
         , concurrencyPerInstance: 2
         })
 
-        const promise1 = pool.use(() => delay(100))
-        const promise2 = pool.use(() => delay(100))
-        const promise3 = pool.use(() => delay(100))
+        const deferred = new Deferred<void>()
+        const promise1 = pool.use(() => deferred)
+        const promise2 = pool.use(() => deferred)
+        const promise3 = pool.use(() => deferred)
         const size = pool.size
-        await promise1
-        await promise2
-        await promise3
+        deferred.resolve()
+        await Promise.all([promise1, promise2, promise3])
 
         expect(size).toBe(2)
       })
@@ -232,24 +236,24 @@ describe('Pool', () => {
     describe('use when pool does not have idle instances', () => {
       describe('number of instances < maxInstances', () => {
         it('construct a new instance', async () => {
-          const value = {}
-          const create = vi.fn(() => value)
+          const internalInstance = {}
+          const create = vi.fn(() => internalInstance)
           const pool = new Pool({
             create
           , maxInstances: Infinity
           })
 
-          const result = await pool.use(value => value)
+          const result = await pool.use(internalInstance => internalInstance)
 
           expect(create).toBeCalledTimes(1)
-          expect(result).toBe(value)
+          expect(result).toBe(internalInstance)
         })
       })
 
       describe('number of instances = maxInstances', () => {
         it('wait for an idle instance', async () => {
-          const value = {}
-          const create = vi.fn(() => value)
+          const internalInstance = {}
+          const create = vi.fn(() => internalInstance)
           const pool = new Pool({
             create
           , maxInstances: 1
@@ -257,7 +261,7 @@ describe('Pool', () => {
           const deferred = new Deferred<void>()
           pool.use(() => deferred)
 
-          const result = StatefulPromise.from(pool.use(value => value))
+          const result = StatefulPromise.from(pool.use(internalInstance => internalInstance))
           await Promise.resolve()
           const state1 = result.state
           deferred.resolve()
@@ -267,7 +271,7 @@ describe('Pool', () => {
           expect(create).toBeCalledTimes(1)
           expect(state1).toBe(StatefulPromiseState.Pending)
           expect(state2).toBe(StatefulPromiseState.Fulfilled)
-          expect(proResult).toBe(value)
+          expect(proResult).toBe(internalInstance)
         })
       })
     })
@@ -334,7 +338,7 @@ describe('Pool', () => {
       await pool.use(pass)
 
       const result1 = pool.size
-      await delay(1000)
+      await waitForTimeout(1000 + TIME_ERROR)
       const result2 = pool.size
 
       expect(result1).toBe(1)
@@ -354,9 +358,9 @@ describe('Pool', () => {
       await pool.use(pass)
 
       const result1 = pool.size
-      await delay(500)
+      await waitForTimeout(500 + TIME_ERROR)
       await pool.use(pass)
-      await delay(500)
+      await waitForTimeout(500 + TIME_ERROR)
       const result2 = pool.size
 
       expect(result1).toBe(1)

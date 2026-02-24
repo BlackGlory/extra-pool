@@ -38,6 +38,7 @@
     }
   },
   "devDependencies": {
+    "@blackglory/wait-for": "^0.8.5",
     "@commitlint/cli": "^20.4.2",
     "@commitlint/config-conventional": "^20.4.2",
     "@eslint/js": "^10.0.1",

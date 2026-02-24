@@ -1,6 +1,5 @@
-import { describe, test, it, expect, vi } from 'vitest'
 import { pass } from '@blackglory/prelude'
-import { Pool } from '@src/pool.js'
+import { Pool } from '@src/pool'
 import { getErrorAsync } from 'return-style'
 import { Deferred, StatefulPromise, StatefulPromiseState, delay } from 'extra-promise'
 
@@ -8,7 +7,7 @@ describe('Pool', () => {
   describe('create', () => {
     describe('pool does not automatically create minimum number of instances', () => {
       test('options.minInstances = 0', () => {
-        const create = vi.fn()
+        const create = jest.fn()
 
         const pool = new Pool({
           create
@@ -20,7 +19,7 @@ describe('Pool', () => {
       })
 
       test('options.minInstances > 0', () => {
-        const create = vi.fn()
+        const create = jest.fn()
 
         const pool = new Pool({
           create
@@ -36,8 +35,8 @@ describe('Pool', () => {
   describe('destroy', () => {
     describe('pool is busy', () => {
       it('blocks until a pool is idle', async () => {
-        const create = vi.fn()
-        const destroy = vi.fn()
+        const create = jest.fn()
+        const destroy = jest.fn()
         const pool = new Pool({
           create
         , destroy
@@ -62,8 +61,8 @@ describe('Pool', () => {
     describe('pool is idle', () => {
       describe('with options.destroy', () => {
         test('without idle instances', async () => {
-          const create = vi.fn()
-          const destroy = vi.fn()
+          const create = jest.fn()
+          const destroy = jest.fn()
           const pool = new Pool({
             create
           , destroy
@@ -77,8 +76,8 @@ describe('Pool', () => {
         })
 
         test('with idle instances', async () => {
-          const create = vi.fn()
-          const destroy = vi.fn()
+          const create = jest.fn()
+          const destroy = jest.fn()
           const pool = new Pool({
             create
           , destroy
@@ -95,7 +94,7 @@ describe('Pool', () => {
 
       describe('without options.destroy', () => {
         test('without idle instances', async () => {
-          const create = vi.fn()
+          const create = jest.fn()
           const pool = new Pool({
             create
           , minInstances: 0
@@ -107,7 +106,7 @@ describe('Pool', () => {
         })
 
         test('with idle instances', async () => {
-          const create = vi.fn()
+          const create = jest.fn()
           const pool = new Pool({
             create
           , minInstances: 1
@@ -125,7 +124,7 @@ describe('Pool', () => {
   describe('use', () => {
     test('user returns a value', async () => {
       const value = {}
-      const create = vi.fn()
+      const create = jest.fn()
       const pool = new Pool({ create })
 
       const result = await pool.use(() => value)
@@ -135,7 +134,7 @@ describe('Pool', () => {
 
     test('user throws an error', async () => {
       const customError = new Error('custom error')
-      const create = vi.fn()
+      const create = jest.fn()
       const pool = new Pool({ create })
 
       const err = await getErrorAsync(() => pool.use(() => {
@@ -147,7 +146,7 @@ describe('Pool', () => {
 
     test('reuse', async () => {
       const value = {}
-      const create = vi.fn(() => value)
+      const create = jest.fn(() => value)
       const pool = new Pool({
         create
       , maxInstances: 1
@@ -163,7 +162,7 @@ describe('Pool', () => {
 
     describe('concurrencyPerInstance', () => {
       test('users < concurrency', async () => {
-        const create = vi.fn()
+        const create = jest.fn()
         const pool = new Pool({
           create
         , concurrencyPerInstance: 2
@@ -179,7 +178,7 @@ describe('Pool', () => {
       })
 
       test('users = concurrency', async () => {
-        const create = vi.fn()
+        const create = jest.fn()
         const pool = new Pool({
           create
         , concurrencyPerInstance: 2
@@ -201,7 +200,7 @@ describe('Pool', () => {
       describe('number of instances < maxInstances', () => {
         it('construct a new instance', async () => {
           const value = {}
-          const create = vi.fn(() => value)
+          const create = jest.fn(() => value)
           const pool = new Pool({
             create
           , maxInstances: Infinity
@@ -217,7 +216,7 @@ describe('Pool', () => {
       describe('number of instances = maxInstances', () => {
         it('wait for an idle instance', async () => {
           const value = {}
-          const create = vi.fn(() => value)
+          const create = jest.fn(() => value)
           const pool = new Pool({
             create
           , maxInstances: 1
@@ -242,8 +241,8 @@ describe('Pool', () => {
   })
 
   test('capacity', () => {
-    const create = vi.fn()
-    const destroy = vi.fn()
+    const create = jest.fn()
+    const destroy = jest.fn()
     const pool = new Pool({
       create
     , destroy
@@ -257,8 +256,8 @@ describe('Pool', () => {
 
   describe('size', () => {
     test('minInstances === 0', async () => {
-      const create = vi.fn()
-      const destroy = vi.fn()
+      const create = jest.fn()
+      const destroy = jest.fn()
       const pool = new Pool({
         create
       , destroy
@@ -273,8 +272,8 @@ describe('Pool', () => {
     })
 
     test('minInstances !== 0', async () => {
-      const create = vi.fn()
-      const destroy = vi.fn()
+      const create = jest.fn()
+      const destroy = jest.fn()
       const pool = new Pool({
         create
       , destroy
@@ -291,8 +290,8 @@ describe('Pool', () => {
 
   describe('delete instance', () => {
     test('deleted', async () => {
-      const create = vi.fn()
-      const destroy = vi.fn()
+      const create = jest.fn()
+      const destroy = jest.fn()
       const pool = new Pool({
         create
       , destroy
@@ -311,8 +310,8 @@ describe('Pool', () => {
     })
 
     test('cancel scheduled deletion', async () => {
-      const create = vi.fn()
-      const destroy = vi.fn()
+      const create = jest.fn()
+      const destroy = jest.fn()
       const pool = new Pool({
         create
       , destroy

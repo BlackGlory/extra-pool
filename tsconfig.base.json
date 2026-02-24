@@ -1,8 +1,7 @@
 {
   "compilerOptions": {
-    "target": "ES2018"
-  , "module": "NodeNext"
-  , "moduleResolution": "NodeNext"
+    "target": "ES2019"
+  , "module": "CommonJS"
   , "esModuleInterop": true
   , "strict": true
   , "noUnusedLocals": false
@@ -15,9 +14,5 @@
     , "@memoizes/*": ["src/memoizes/*"]
     , "@test/*": ["__tests__/*"]
     }
-  , "plugins": [
-      { "transform": "typescript-transform-paths" }
-    , { "transform": "typescript-transform-paths", "afterDeclarations": true }
-    ]
   }
 }

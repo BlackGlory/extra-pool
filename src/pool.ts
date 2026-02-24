@@ -1,10 +1,11 @@
-import { go, Awaitable, CustomError, isntEmptyArray, assert } from '@blackglory/prelude'
+import { CustomError } from '@blackglory/errors'
+import { go, Awaitable } from '@blackglory/prelude'
 import { Queue } from '@blackglory/structures'
-import { FiniteStateMachine, IFiniteStateMachineSchema } from 'extra-fsm'
-import { Deferred, each } from 'extra-promise'
+import { FiniteStateMachine } from 'extra-fsm'
+import { Deferred } from 'extra-promise'
 import { toArray, filter } from 'iterable-operator'
 import { setTimeout } from 'extra-timers'
-import { Instance } from './instance.js'
+import { Instance } from './instance'
 
 interface IPoolOptions<T> {
   create: () => Awaitable<T>
@@ -50,16 +51,16 @@ interface IPoolItem<T> {
 }
 
 enum PoolState {
-  Running
-, Destroying
-, Destroyed
+  Running = 'running'
+, Destroying = 'destroying'
+, Destroyed = 'destroyed'
 }
 
 type PoolEvent =
 | 'destroy'
 | 'destroyed'
 
-const poolSchema: IFiniteStateMachineSchema<PoolState, PoolEvent> = {
+const poolSchema = {
   [PoolState.Running]: {
     destroy: PoolState.Destroying
   }
@@ -72,10 +73,7 @@ const poolSchema: IFiniteStateMachineSchema<PoolState, PoolEvent> = {
 export class Pool<T> {
   private readonly createInstance: () => Awaitable<T>
   private readonly destroyInstance?: (value: T) => Awaitable<void>
-  private readonly fsm: FiniteStateMachine<
-    PoolState
-  , PoolEvent
-  > = new FiniteStateMachine(
+  private readonly fsm = new FiniteStateMachine<PoolState, PoolEvent>(
     poolSchema
   , PoolState.Running
   )
@@ -108,8 +106,6 @@ export class Pool<T> {
    * 函数的使用者应该尊重阻塞, 否则会意外制造大量非必要的Promise.
    */
   async use<U>(fn: (instance: T) => Awaitable<U>): Promise<U> {
-    assert(this.fsm.matches(PoolState.Running), 'The pool is not available')
-
     const self = this
 
     const item = go(() => {
@@ -118,12 +114,13 @@ export class Pool<T> {
       , item => item.instance.users < this.concurrencyPerInstance
       ))
 
-      if (isntEmptyArray(candidateItems)) {
-        // 找到负载最低(用户量最少)的项目.
+      if (candidateItems.length) {
         return candidateItems.reduce((previous, current) => {
-          return current.instance.users < previous.instance.users
-               ? current
-               : previous
+          if (current.instance.users < previous.instance.users) {
+            return current
+          } else {
+            return previous
+          }
         })
       }
     })
@@ -184,12 +181,14 @@ export class Pool<T> {
   async destroy(): Promise<void> {
     this.fsm.send('destroy')
 
-    await each(this.items, item => item.instance.destroy())
+    for (const item of this.items) {
+      await item.instance.destroy()
+    }
     this.items.clear()
 
-    let waitingUser: Deferred<IPoolItem<T>> | undefined
-    while (waitingUser = this.waitingUsers.dequeue()) {
-      waitingUser.reject(new UnavailablePool())
+    let deferred: Deferred<IPoolItem<T>> | undefined
+    while (deferred = this.waitingUsers.dequeue()) {
+      deferred.reject(new UnavailablePool())
     }
 
     this.fsm.send('destroyed')

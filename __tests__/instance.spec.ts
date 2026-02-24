@@ -1,404 +1,205 @@
-import { describe, test, expect, vi } from 'vitest'
 import { pass } from '@blackglory/prelude'
-import { Deferred } from 'extra-promise'
-import { getErrorPromise } from 'return-style'
-import { Instance, InstanceState } from '@src/instance.js'
+import { delay } from 'extra-promise'
+import { Instance, InstanceState } from '@src/instance'
 
 describe('Instance', () => {
-  describe('use', () => {
-    test('state: created', async () => {
-      const internalInstance = {}
-      const createInstance = vi.fn(() => internalInstance)
-      const instance = new Instance(createInstance)
-      const useHandler = vi.fn(() => ({
-        state: instance.state
-      , users: instance.users
-      }))
+  describe('construtor', () => {
+    test('sync', async () => {
+      const value = {}
 
-      const startState = instance.state
-      const startUsers = instance.users
-      const result = await instance.use(useHandler)
-      const endState = instance.state
-      const endUsers = instance.users
+      const instance = new Instance(() => value)
+      const state1 = instance.getState()
+      const internalInstanceValue = await instance._instance
+      const state2 = instance.getState()
 
-      expect(startState).toBe(InstanceState.Created)
-      expect(startUsers).toBe(0)
-      expect(result).toStrictEqual({
-        state: InstanceState.Busy
-      , users: 1
-      })
-      expect(endState).toBe(InstanceState.Idle)
-      expect(endUsers).toBe(0)
-      expect(createInstance).toBeCalledTimes(1)
-      expect(useHandler).toBeCalledTimes(1)
-      expect(useHandler).toBeCalledWith(internalInstance)
+      expect(internalInstanceValue).toBe(value)
+      expect(state1).toBe(InstanceState.Creating)
+      expect(state2).toBe(InstanceState.Idle)
     })
 
-    test('state: initializing', async () => {
-      const internalInstance = {}
-      const deferred = new Deferred<typeof internalInstance>()
-      const createInstance = vi.fn(() => deferred)
-      const instance = new Instance(createInstance)
-      instance.use(pass)
-      const useHandler = vi.fn(() => ({
-        state: instance.state
-      , users: instance.users
-      }))
+    test('async', async () => {
+      const value = {}
 
-      const startState = instance.state
-      const startUsers = instance.users
-      const promise = instance.use(useHandler)
-      deferred.resolve(internalInstance)
-      const result = await promise
-      const endState = instance.state
-      const endUsers = instance.users
-
-      expect(startState).toBe(InstanceState.Initializing)
-      expect(startUsers).toBe(1)
-      expect(result).toStrictEqual({
-        state: InstanceState.Busy
-      , users: 1
+      const instance = new Instance(() => {
+        delay(100)
+        return value
       })
-      expect(endState).toBe(InstanceState.Idle)
-      expect(endUsers).toBe(0)
-      expect(createInstance).toBeCalledTimes(1)
-      expect(useHandler).toBeCalledTimes(1)
-      expect(useHandler).toBeCalledWith(internalInstance)
-    })
+      const state1 = instance.getState()
+      const internalInstanceValue = await instance._instance
+      const state2 = instance.getState()
 
-    test('state: idle', async () => {
-      const internalInstance = {}
-      const createInstance = vi.fn(() => internalInstance)
-      const instance = new Instance(createInstance)
-      await instance.use(pass)
-      const useHandler = vi.fn(() => ({
-        state: instance.state
-      , users: instance.users
-      }))
-
-      const startState = instance.state
-      const startUsers = instance.users
-      const result = await instance.use(useHandler)
-      const endState = instance.state
-      const endUsers = instance.users
-
-      expect(startState).toBe(InstanceState.Idle)
-      expect(startUsers).toBe(0)
-      expect(result).toStrictEqual({
-        state: InstanceState.Busy
-      , users: 1
-      })
-      expect(endState).toBe(InstanceState.Idle)
-      expect(endUsers).toBe(0)
-      expect(createInstance).toBeCalledTimes(1)
-      expect(useHandler).toBeCalledTimes(1)
-      expect(useHandler).toBeCalledWith(internalInstance)
-    })
-
-    test('state: busy', async () => {
-      const internalInstance = {}
-      const createInstance = vi.fn(() => internalInstance)
-      const instance = new Instance(createInstance)
-      const deferred = new Deferred<typeof internalInstance>()
-      const promise = instance.use(() => deferred)
-      await instance.waitForState(InstanceState.Busy)
-      const useHandler = vi.fn(() => ({
-        state: instance.state
-      , users: instance.users
-      }))
-
-      const startState = instance.state
-      const startUsers = instance.users
-      const result = await instance.use(useHandler)
-      const endState = instance.state
-      const endUsers = instance.users
-      deferred.resolve(internalInstance)
-      await promise
-
-      expect(startState).toBe(InstanceState.Busy)
-      expect(startUsers).toBe(1)
-      expect(result).toStrictEqual({
-        state: InstanceState.Busy
-      , users: 2
-      })
-      expect(endState).toBe(InstanceState.Busy)
-      expect(endUsers).toBe(1)
-      expect(createInstance).toBeCalledTimes(1)
-      expect(useHandler).toBeCalledTimes(1)
-      expect(useHandler).toBeCalledWith(internalInstance)
-    })
-
-    test('state: destroying', async () => {
-      const internalInstance = {}
-      const createInstance = vi.fn(() => internalInstance)
-      const deferred = new Deferred<void>()
-      const destroyInstance = vi.fn(() => deferred)
-      const instance = new Instance(createInstance, destroyInstance)
-      await instance.use(pass)
-      const promise = instance.destroy()
-      const useHandler = vi.fn(() => ({
-        state: instance.state
-      , users: instance.users
-      }))
-
-      const startState = instance.state
-      const startUsers = instance.users
-      const err = await getErrorPromise(instance.use(useHandler))
-      const endState = instance.state
-      const endUsers = instance.users
-      deferred.resolve()
-      await promise
-
-      expect(startState).toBe(InstanceState.Destroying)
-      expect(startUsers).toBe(0)
-      expect(err).toBeInstanceOf(Error)
-      expect(err?.message).toBe('The instance is not available')
-      expect(endState).toBe(InstanceState.Destroying)
-      expect(endUsers).toBe(0)
-      expect(createInstance).toBeCalledTimes(1)
-      expect(destroyInstance).toBeCalledTimes(1)
-      expect(destroyInstance).toBeCalledWith(internalInstance)
-      expect(useHandler).not.toBeCalled()
-    })
-
-    test('state: destroyed', async () => {
-      const internalInstance = {}
-      const createInstance = vi.fn(() => internalInstance)
-      const deferred = new Deferred<void>()
-      const destroyInstance = vi.fn()
-      const instance = new Instance(createInstance, destroyInstance)
-      await instance.destroy()
-      const useHandler = vi.fn(() => ({
-        state: instance.state
-      , users: instance.users
-      }))
-
-      const startState = instance.state
-      const startUsers = instance.users
-      const err = await getErrorPromise(instance.use(useHandler))
-      const endState = instance.state
-      const endUsers = instance.users
-      deferred.resolve()
-
-      expect(startState).toBe(InstanceState.Destroyed)
-      expect(startUsers).toBe(0)
-      expect(err).toBeInstanceOf(Error)
-      expect(err?.message).toBe('The instance is not available')
-      expect(endState).toBe(InstanceState.Destroyed)
-      expect(endUsers).toBe(0)
-      expect(createInstance).not.toBeCalled()
-      expect(destroyInstance).not.toBeCalled()
-      expect(useHandler).not.toBeCalled()
-    })
-
-    test('edge: throw an error when creating instance', async () => {
-      const customError = new Error('custom error')
-      const internalInstance = {}
-      let times = 0
-      const createInstance = vi.fn(() => {
-        if (times++ === 0) throw customError
-        return internalInstance
-      })
-      const instance = new Instance(createInstance)
-      const useHandler = vi.fn(() => ({
-        state: instance.state
-      , users: instance.users
-      }))
-
-      const state1 = instance.state
-      const users1 = instance.users
-      const err = await getErrorPromise(instance.use(useHandler))
-      const state2 = instance.state
-      const users2 = instance.users
-      const result = await instance.use(useHandler)
-      const state3 = instance.state
-      const users3 = instance.users
-
-      expect(state1).toBe(InstanceState.Created)
-      expect(users1).toBe(0)
-      expect(err).toBe(customError)
-      expect(state2).toBe(InstanceState.Created)
-      expect(users2).toBe(0)
-      expect(result).toStrictEqual({
-        state: InstanceState.Busy
-      , users: 1
-      })
-      expect(state3).toBe(InstanceState.Idle)
-      expect(users3).toBe(0)
-      expect(createInstance).toBeCalledTimes(2)
-      expect(useHandler).toBeCalledTimes(1)
-      expect(useHandler).toBeCalledWith(internalInstance)
+      expect(internalInstanceValue).toBe(value)
+      expect(state1).toBe(InstanceState.Creating)
+      expect(state2).toBe(InstanceState.Idle)
     })
   })
 
-  describe('destroy', () => {
-    test('state: created', async () => {
-      const createInstance = vi.fn()
-      const destroyInstance = vi.fn()
-      const instance = new Instance(createInstance, destroyInstance)
+  test('waitForCreated', async () => {
+    const instance = new Instance(pass)
 
-      const startState = instance.state
-      const startUsers = instance.users
-      await instance.destroy()
-      const endState = instance.state
-      const endUsers = instance.users
+    const state1 = instance.getState()
+    await instance.waitForCreated()
+    const state2 = instance.getState()
 
-      expect(startState).toBe(InstanceState.Created)
-      expect(startUsers).toBe(0)
-      expect(endState).toBe(InstanceState.Destroyed)
-      expect(endUsers).toBe(0)
-      expect(createInstance).not.toBeCalled()
-      expect(destroyInstance).not.toBeCalled()
-    })
+    expect(state1).toBe(InstanceState.Creating)
+    expect(state2).toBe(InstanceState.Idle)
+  })
 
-    test('state: initializing', async () => {
-      const internalInstance = {}
-      const deferred = new Deferred<typeof internalInstance>()
-      const createInstance = vi.fn(() => deferred)
-      const destroyInstance = vi.fn()
-      const instance = new Instance(createInstance, destroyInstance)
-      instance.use(pass)
-
-      const startState = instance.state
-      const startUsers = instance.users
-      const promise = instance.destroy()
-      deferred.resolve(internalInstance)
-      await promise
-      const endState = instance.state
-      const endUsers = instance.users
-
-      expect(startState).toBe(InstanceState.Initializing)
-      expect(startUsers).toBe(1)
-      expect(endState).toBe(InstanceState.Destroyed)
-      expect(endUsers).toBe(0)
-      expect(createInstance).toBeCalledTimes(1)
-      expect(destroyInstance).toBeCalledTimes(1)
-      expect(destroyInstance).toBeCalledWith(internalInstance)
-    })
-
+  describe('use', () => {
     test('state: idle', async () => {
-      const internalInstance = {}
-      const createInstance = vi.fn(() => internalInstance)
-      const destroyInstance = vi.fn()
-      const instance = new Instance(createInstance, destroyInstance)
-      await instance.use(pass)
-
-      const startState = instance.state
-      const startUsers = instance.users
-      await instance.destroy()
-      const endState = instance.state
-      const endUsers = instance.users
-
-      expect(startState).toBe(InstanceState.Idle)
-      expect(startUsers).toBe(0)
-      expect(endState).toBe(InstanceState.Destroyed)
-      expect(endUsers).toBe(0)
-      expect(createInstance).toBeCalledTimes(1)
-      expect(destroyInstance).toBeCalledTimes(1)
-      expect(destroyInstance).toBeCalledWith(internalInstance)
-    })
-
-    test('state: busy', async () => {
-      const internalInstance = {}
-      const createInstance = vi.fn(() => internalInstance)
-      const destroyInstance = vi.fn()
-      const instance = new Instance(createInstance, destroyInstance)
-      const deferred = new Deferred<void>()
-      instance.use(() => deferred)
-      await instance.waitForState(InstanceState.Busy)
-
-      const startState = instance.state
-      const startUsers = instance.users
-      const promise = instance.destroy()
-      deferred.resolve()
-      await promise
-      const endState = instance.state
-      const endUsers = instance.users
-
-      expect(startState).toBe(InstanceState.Busy)
-      expect(startUsers).toBe(1)
-      expect(endState).toBe(InstanceState.Destroyed)
-      expect(endUsers).toBe(0)
-      expect(createInstance).toBeCalledTimes(1)
-      expect(destroyInstance).toBeCalledTimes(1)
-      expect(destroyInstance).toBeCalledWith(internalInstance)
-    })
-
-    test('state: destroying', async () => {
-      const internalInstance = {}
-      const createInstance = vi.fn(() => internalInstance)
-      const deferred = new Deferred<void>()
-      const destroyInstance = vi.fn(() => deferred)
-      const instance = new Instance(createInstance, destroyInstance)
-      await instance.use(pass)
-      instance.destroy()
-
-      const startState = instance.state
-      const startUsers = instance.users
-      const promise = instance.destroy()
-      deferred.resolve()
-      await promise
-      const endState = instance.state
-      const endUsers = instance.users
-
-      expect(startState).toBe(InstanceState.Destroying)
-      expect(startUsers).toBe(0)
-      expect(endState).toBe(InstanceState.Destroyed)
-      expect(endUsers).toBe(0)
-      expect(createInstance).toBeCalledTimes(1)
-      expect(destroyInstance).toBeCalledTimes(1)
-      expect(destroyInstance).toBeCalledWith(internalInstance)
-    })
-
-    test('state: destroyed', async () => {
-      const internalInstance = {}
-      const createInstance = vi.fn(() => internalInstance)
-      const destroyInstance = vi.fn()
-      const instance = new Instance(createInstance, destroyInstance)
-      await instance.destroy()
-
-      const startState = instance.state
-      const startUsers = instance.users
-      await instance.destroy()
-      const endState = instance.state
-      const endUsers = instance.users
-
-      expect(startState).toBe(InstanceState.Destroyed)
-      expect(startUsers).toBe(0)
-      expect(endState).toBe(InstanceState.Destroyed)
-      expect(endUsers).toBe(0)
-      expect(createInstance).not.toBeCalled()
-      expect(destroyInstance).not.toBeCalled()
-    })
-
-    test('edge: throw an error when destroying instance', async () => {
-      const internalInstance = {}
-      const createInstance = vi.fn(() => internalInstance)
-      const customError = new Error('custom error')
-      const destroyInstance = vi.fn(() => { throw customError })
-      const instance = new Instance(createInstance, destroyInstance)
-      await instance.use(pass)
-
-      const state1 = instance.state
+      const instance = new Instance(pass)
+      await instance.waitForCreated()
+      const state1 = instance.getState()
       const users1 = instance.users
-      const err1 = await getErrorPromise(instance.destroy())
-      const state2 = instance.state
+      const fn = jest.fn()
+
+      const promise = instance.use(fn)
+      const state2 = instance.getState()
       const users2 = instance.users
-      const err2 = await getErrorPromise(instance.destroy())
-      const state3 = instance.state
+      await promise
+      const state3 = instance.getState()
       const users3 = instance.users
 
       expect(state1).toBe(InstanceState.Idle)
       expect(users1).toBe(0)
-      expect(err1).toBe(customError)
+      expect(state2).toBe(InstanceState.Using)
+      expect(users2).toBe(1)
+      expect(state3).toBe(InstanceState.Idle)
+      expect(users3).toBe(0)
+    })
+
+    test('state: using', async () => {
+      const instance = new Instance(pass)
+      await instance.waitForCreated()
+      const usePromise1 = instance.use(() => delay(100))
+      const state1 = instance.getState()
+      const users1 = instance.users
+      const fn = jest.fn()
+
+      const usePromise2 = instance.use(fn)
+      const state2 = instance.getState()
+      const users2 = instance.users
+      await usePromise2
+      const state3 = instance.getState()
+      const users3 = instance.users
+      await usePromise1
+      const state4 = instance.getState()
+      const users4 = instance.users
+
+      expect(state1).toBe(InstanceState.Using)
+      expect(users1).toBe(1)
+      expect(state2).toBe(InstanceState.Using)
+      expect(users2).toBe(2)
+      expect(state3).toBe(InstanceState.Using)
+      expect(users3).toBe(1)
+      expect(state4).toBe(InstanceState.Idle)
+      expect(users4).toBe(0)
+    })
+  })
+
+  describe('destroy', () => {
+    test('state: creating', async () => {
+      const destroy = jest.fn()
+      const instance = new Instance(pass, destroy)
+      const state1 = instance.getState()
+
+      const promise = instance.destroy()
+      const state2 = instance.getState()
+      await promise
+      const state3 = instance.getState()
+
+      expect(destroy).toBeCalledTimes(1)
+      expect(state1).toBe(InstanceState.Creating)
+      expect(state2).toBe(InstanceState.Creating)
+      expect(state3).toBe(InstanceState.Destroyed)
+    })
+
+    test('state: idle', async () => {
+      const destroy = jest.fn(() => delay(100))
+      const instance = new Instance(pass, destroy)
+      await instance.waitForCreated()
+      const state1 = instance.getState()
+      const users1 = instance.users
+
+      const promise = instance.destroy()
+      const state2 = instance.getState()
+      const users2 = instance.users
+      await promise
+      const state3 = instance.getState()
+      const users3 = instance.users
+
+      expect(destroy).toBeCalledTimes(1)
+      expect(state1).toBe(InstanceState.Idle)
+      expect(users1).toBe(0)
       expect(state2).toBe(InstanceState.Destroying)
       expect(users2).toBe(0)
-      expect(err2).toBe(customError)
+      expect(state3).toBe(InstanceState.Destroyed)
+      expect(users3).toBe(0)
+    })
+
+    test('state: using', async () => {
+      const destroy = jest.fn(() => delay(100))
+      const instance = new Instance(pass, destroy)
+      await instance.waitForCreated()
+      const usePromise = instance.use(() => delay(100))
+      const state1 = instance.getState()
+      const users1 = instance.users
+
+      const destroyPromise = instance.destroy()
+      const state2 = instance.getState()
+      const users2 = instance.users
+      await usePromise
+      const state3 = instance.getState()
+      const users3 = instance.users
+      await destroyPromise
+      const state4 = instance.getState()
+      const users4 = instance.users
+
+      expect(destroy).toBeCalledTimes(1)
+      expect(state1).toBe(InstanceState.Using)
+      expect(users1).toBe(1)
+      expect(state2).toBe(InstanceState.Using)
+      expect(users2).toBe(1)
       expect(state3).toBe(InstanceState.Destroying)
       expect(users3).toBe(0)
-      expect(createInstance).toBeCalledTimes(1)
-      expect(destroyInstance).toBeCalledTimes(1)
-      expect(destroyInstance).toBeCalledWith(internalInstance)
+      expect(state4).toBe(InstanceState.Destroyed)
+      expect(users4).toBe(0)
+    })
+
+    test('state: destroying', async () => {
+      const destroy = jest.fn()
+      const instance = new Instance(pass, destroy)
+      await instance.waitForCreated()
+      instance.destroy()
+      const state1 = instance.getState()
+
+      const promise = instance.destroy()
+      const state2 = instance.getState()
+      await promise
+      const state3 = instance.getState()
+
+      expect(destroy).toBeCalledTimes(1)
+      expect(state1).toBe(InstanceState.Destroying)
+      expect(state2).toBe(InstanceState.Destroying)
+      expect(state3).toBe(InstanceState.Destroyed)
+    })
+
+    test('state: destroyed', async () => {
+      const destroy = jest.fn()
+      const instance = new Instance(pass, destroy)
+      await instance.waitForCreated()
+      await instance.destroy()
+      const state1 = instance.getState()
+
+      const promise = instance.destroy()
+      const state2 = instance.getState()
+      await promise
+      const state3 = instance.getState()
+
+      expect(destroy).toBeCalledTimes(1)
+      expect(state1).toBe(InstanceState.Destroyed)
+      expect(state2).toBe(InstanceState.Destroyed)
+      expect(state3).toBe(InstanceState.Destroyed)
     })
   })
 })

@@ -122,38 +122,6 @@ describe('Pool', () => {
     })
   })
 
-  describe('prewarm', () => {
-    test('general', async () => {
-      const create = vi.fn()
-      const pool = new Pool({
-        create
-        // 由于负载均衡, 即使concurrencyPerInstance大于1, 也只需调用10次.
-      , concurrencyPerInstance: 2
-      , idleTimeout: 1000
-      })
-
-      await pool.prewarm(10)
-
-      expect(create).toBeCalledTimes(10)
-      expect(pool.size).toBe(10)
-    })
-
-    test('edge: idleTimeout = 0', async () => {
-      const create = vi.fn()
-      const pool = new Pool({
-        create
-      , concurrencyPerInstance: 1
-      , idleTimeout: 0
-      })
-
-      await pool.prewarm(10)
-
-      expect(create).toBeCalledTimes(10)
-      // 由于idleTimeout被设置为0, 在预热完毕后就销毁所有创建好的实例.
-      expect(pool.size).toBe(0)
-    })
-  })
-
   describe('use', () => {
     test('user returns a value', async () => {
       const value = {}

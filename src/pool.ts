@@ -1,7 +1,7 @@
 import { go, Awaitable, CustomError, isntEmptyArray, assert, isPositiveInfinity } from '@blackglory/prelude'
 import { Queue } from '@blackglory/structures'
 import { FiniteStateMachine, IFiniteStateMachineSchema } from 'extra-fsm'
-import { Deferred, DeferredGroup, each } from 'extra-promise'
+import { Deferred, each } from 'extra-promise'
 import { toArray, filter } from 'iterable-operator'
 import { setTimeout } from 'extra-timers'
 import { Instance } from './instance.js'
@@ -130,27 +130,6 @@ export class Pool<T> {
       this.concurrencyPerInstance >= 1
     , 'The concurrencyPerInstance must an integer greater than or equal to 1'
     )
-  }
-
-  async prewarm(targetInstances: number): Promise<void> {
-    assert(
-      targetInstances >= this.minInstances &&
-      targetInstances <= this.maxInstances &&
-      Number.isFinite(targetInstances)
-    , 'The targetInstances must be an finite integer in [minInstances, maxInstances]'
-    )
-
-    const promises: Array<Promise<void>> = []
-
-    const deferredGroup = new DeferredGroup<void>()
-    while (this.size < targetInstances) {
-      const deferred = new Deferred<void>()
-      deferredGroup.add(deferred)
-      promises.push(this.use(() => deferred))
-    }
-    deferredGroup.resolve()
-
-    await Promise.all(promises)
   }
 
   /**

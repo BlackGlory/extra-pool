@@ -43,8 +43,6 @@ class Pool<T> {
 
   constructor(options: IPoolOptions<T>)
 
-  prewarm(targetInstances: number): Promise<void>
-
   use<U>(fn: (instance: T) => Awaitable<U>): Promise<U>
 
   destroy(): Promise<void>

@@ -43,8 +43,8 @@ class Pool<T> {
 
   constructor(options: IPoolOptions<T>)
 
-  destroy(): Promise<void>
-
   use<U>(fn: (instance: T) => Awaitable<U>): Promise<U>
+
+  destroy(): Promise<void>
 }
 ```

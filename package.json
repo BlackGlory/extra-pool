@@ -1,6 +1,6 @@
 {
   "name": "extra-pool",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "A library that helps you create object/thread/connection pools",
   "keywords": [
     "pool",

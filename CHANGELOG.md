@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.1.6](https://github.com/BlackGlory/extra-pool/compare/v0.1.5...v0.1.6) (2026-02-24)
+
+
+### Features
+
+* **pool:** add `prewarm()` method ([9667b0e](https://github.com/BlackGlory/extra-pool/commit/9667b0eaaca2e90e73bffa8a8ead6203537a79dd))
+* **pool:** add parameter validators ([000802c](https://github.com/BlackGlory/extra-pool/commit/000802c14e1f595ceb31c5ea630b90a08d0193eb))
+
 ### [0.1.5](https://github.com/BlackGlory/extra-pool/compare/v0.1.4...v0.1.5) (2026-02-24)
 
 

@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.1.5](https://github.com/BlackGlory/extra-pool/compare/v0.1.4...v0.1.5) (2026-02-24)
+
+
+### Features
+
+* **instance:** rewrite to improve behavior when an error is thrown ([8f60254](https://github.com/BlackGlory/extra-pool/commit/8f602546451193d91c19bec83a271d2b1daba3b3))
+
 ### [0.1.4](https://github.com/BlackGlory/extra-pool/compare/v0.1.3...v0.1.4) (2026-01-23)
 
 

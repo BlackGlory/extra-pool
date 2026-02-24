@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.2.0](https://github.com/BlackGlory/extra-pool/compare/v0.1.6...v0.2.0) (2026-02-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* Node.js v14 => Node.js v22
+
+### ci
+
+* fix ([ceea369](https://github.com/BlackGlory/extra-pool/commit/ceea369d95bdaad2944845d254aad9bd952fbdf0))
+
 ### [0.1.6](https://github.com/BlackGlory/extra-pool/compare/v0.1.5...v0.1.6) (2026-02-24)
 
 

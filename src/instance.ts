@@ -3,6 +3,7 @@ import { ObservableFiniteStateMachine, IFiniteStateMachineSchema } from 'extra-f
 import { Deferred } from 'extra-promise'
 import { firstValueFrom } from 'rxjs'
 import { filter, map } from 'rxjs/operators'
+import { assertTypeIsNever } from './assert-type.js'
 
 export enum InstanceState {
   Created
@@ -140,7 +141,7 @@ export class Instance<T> {
       }
       case InstanceState.Destroying:
       case InstanceState.Destroyed: throw new Error('The instance is not available')
-      default: throw new Error(`Unhandled state`)
+      default: assertTypeIsNever<typeof this.fsm.state>('Unhandled state')
     }
 
     function addUser(): void {
@@ -201,7 +202,7 @@ export class Instance<T> {
         return
       }
       case InstanceState.Destroyed: return
-      default: throw new Error(`Unhandled state`)
+      default: assertTypeIsNever<typeof this.fsm.state>('Unhandled state')
     }
   }
 

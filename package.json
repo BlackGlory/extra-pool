@@ -58,9 +58,9 @@
     "vitest": "^4.0.18"
   },
   "dependencies": {
-    "@blackglory/errors": "^3.1.0",
     "@blackglory/prelude": "^0.4.0",
     "@blackglory/structures": "^0.14.12",
+    "assert-never": "^1.4.0",
     "extra-fsm": "^0.2.1",
     "extra-promise": "^7.1.1",
     "extra-timers": "^0.3.0",
